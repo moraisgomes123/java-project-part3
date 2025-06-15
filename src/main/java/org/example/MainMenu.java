@@ -46,15 +46,15 @@ public class MainMenu {
                         // Start the QuickChat messaging interface, passing the messageProcessor.
                         Message.startQuickChat(messageProcessor);
                     }
-                    case 2 -> { // Option 2: Display Senders and Recipients (formerly case 3)
+                    case 2 -> { // Option 2: Display Senders and Recipients
                         // Display a report of all message senders and recipients.
                         messageProcessor.displaySentMessageSendersAndRecipients();
                     }
-                    case 3 -> { // Option 3: Display Longest Message (formerly case 4)
+                    case 3 -> { // Option 3: Display Longest Message
                         // Find and display the longest message sent.
                         messageProcessor.displayLongestSentMessage();
                     }
-                    case 4 -> { // Option 4: Search Message by ID (formerly case 5)
+                    case 4 -> { // Option 4: Search Message by ID
                         // Prompt for a Message ID and search for it.
                         String searchId = JOptionPane.showInputDialog("Enter Message ID to search:");
                         if (searchId != null && !searchId.trim().isEmpty()) {
@@ -63,7 +63,7 @@ public class MainMenu {
                             JOptionPane.showMessageDialog(null, "No Message ID entered.", "Search Cancelled", JOptionPane.INFORMATION_MESSAGE);
                         }
                     }
-                    case 5 -> { // Option 5: Search Messages by Recipient (formerly case 6)
+                    case 5 -> { // Option 5: Search Messages by Recipient
                         // Prompt for a recipient number and search for messages sent to them.
                         String searchRecipient = JOptionPane.showInputDialog("Enter Recipient number to search:");
                         if (searchRecipient != null && !searchRecipient.trim().isEmpty()) {
@@ -72,7 +72,7 @@ public class MainMenu {
                             JOptionPane.showMessageDialog(null, "No Recipient entered.", "Search Cancelled", JOptionPane.INFORMATION_MESSAGE);
                         }
                     }
-                    case 6 -> { // Option 6: Delete Message by Hash (formerly case 7)
+                    case 6 -> { // Option 6: Delete Message by Hash
                         // Prompt for a message hash and attempt to delete the corresponding message.
                         String deleteHash = JOptionPane.showInputDialog("Enter Message Hash to delete:");
                         if (deleteHash != null && !deleteHash.trim().isEmpty()) {
@@ -81,20 +81,21 @@ public class MainMenu {
                             JOptionPane.showMessageDialog(null, "No Message Hash entered.", "Delete Cancelled", JOptionPane.INFORMATION_MESSAGE);
                         }
                     }
-                    case 7 -> { // Option 7: Display Full Message Report (formerly case 8)
+                    case 7 -> { // Option 7: Display Full Message Report
                         // Display a comprehensive report of all sent messages.
                         messageProcessor.displaySentMessagesReport();
                     }
-                    case 8 -> { // Option 8: Load Messages from JSON File (formerly case 9)
-                        // Load messages from a JSON file into the message processor.
-                        boolean loaded = messageProcessor.loadStoredMessagesFromJson();
+                    case 8 -> { // Option 8: Load Messages from JSON File
+                        // *** MODIFIED: Changed to call loadAllMessagesFromJson() for consolidated loading ***
+                        boolean loaded = messageProcessor.loadAllMessagesFromJson();
                         if (loaded) {
                             JOptionPane.showMessageDialog(null, "Messages loaded from JSON file.");
                         } else {
-                            JOptionPane.showMessageDialog(null, "No messages to load.", "Info", JOptionPane.INFORMATION_MESSAGE);
+                            // Updated message for clarity on why messages might not load.
+                            JOptionPane.showMessageDialog(null, "No messages to load or the JSON file is empty/corrupted.", "Info", JOptionPane.INFORMATION_MESSAGE);
                         }
                     }
-                    case 9 -> { // Option 9: Logout (formerly case 10)
+                    case 9 -> { // Option 9: Logout/Exit
                         // Log out the user and exit the application.
                         JOptionPane.showMessageDialog(null, "Logging out. Goodbye!");
                         System.exit(0); // Terminate application process.
