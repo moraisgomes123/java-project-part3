@@ -23,4 +23,5 @@ jobs:
           distribution: 'temurin'
 
       - name: Rodar testes Maven
-        run: ./mvnw clean test
+        run: mvn clean test
+

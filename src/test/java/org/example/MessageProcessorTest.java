@@ -9,8 +9,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class MessageProcessorTest {
 
-    private static final String DATA_FILE_NAME = "quickChatData.json";
-
     private MessageProcessor processor;
     private MessageData.messageData msg1, msg2, msg3, msg4;
 
@@ -21,16 +19,15 @@ class MessageProcessorTest {
         msg1 = new MessageData.messageData("1", "+27838884567", "Did you get the cake?", "hash1", "sent");
         msg2 = new MessageData.messageData("2", "+27838884567", "Where are you? You are late! I have asked you to be on time.", "hash2", "sent");
         msg3 = new MessageData.messageData("3", "+27838884567", "Ok, I am leaving without you.", "hash3", "stored");
-        msg4 = new MessageData.messageData("4", "+27830001111", "It is dinner time!", "hash4", "sent");
+        msg4 = new MessageData.messageData("0838884567", "+27830001111", "It is dinner time!", "hash4", "sent");
 
-        // Clean state before each test
-        File f = new File(DATA_FILE_NAME);
-        if (f.exists()) f.delete();
+        File f = new File("storedMessages.json");
+        if (f.exists()) f.delete(); // Clean state before each test
     }
 
     @AfterEach
     void tearDown() {
-        File f = new File(DATA_FILE_NAME);
+        File f = new File("storedMessages.json");
         if (f.exists()) f.delete();
     }
 
@@ -64,7 +61,7 @@ class MessageProcessorTest {
         processor.addSentMessage(msg4);
 
         MessageData.messageData found = processor.getSentMessages().stream()
-                .filter(m -> m.getId().equals("4"))
+                .filter(m -> m.getId().equals("0838884567"))
                 .findFirst()
                 .orElse(null);
 
@@ -121,14 +118,14 @@ class MessageProcessorTest {
     void addStoredMessage() {
         processor.addStoredMessage(msg3);
         assertEquals(1, processor.getStoredMessages().size());
-        assertTrue(new File(DATA_FILE_NAME).exists());
+        assertTrue(new File("storedMessages.json").exists());
     }
 
     @Test
     void loadStoredMessagesFromJson() {
         processor.addStoredMessage(msg3); // Save to file
         MessageProcessor newProcessor = new MessageProcessor();
-        boolean loaded = newProcessor.loadAllMessagesFromJson(); // NOTE: updated to correct method
+        boolean loaded = newProcessor.loadStoredMessagesFromJson();
         assertTrue(loaded);
         assertEquals(1, newProcessor.getStoredMessages().size());
     }

@@ -24,11 +24,10 @@ public class Message {
         allowedMessagesInSession = 0;
         messagesSentInSession = 0;
 
-        // Load any previously stored and sent messages from the JSON file.
-        // This ensures that 'sentMessages' and 'storedMessages' lists in MessageProcessor are populated
+        // Load any previously stored messages from the JSON file.
+        // This ensures that 'storedMessages' list in MessageProcessor is populated
         // with existing data when QuickChat starts.
-        // **** MODIFICATION HERE ****
-        messageProcessor.loadAllMessagesFromJson(); // Changed from loadStoredMessagesFromJson()
+        messageProcessor.loadStoredMessagesFromJson();
 
         // Main loop for the QuickChat menu.
         while (true) {
@@ -180,7 +179,6 @@ public class Message {
         }
 
         // Create a unique message hash using the MessageData utility.
-        // Reverted to use messageNumber as the second argument to match expected MessageData signature.
         String messageHash = messageDataUtil.createMessageHash(messageID, messageNumber, messageText);
 
         // Create a new MessageData.messageData object with the gathered details.

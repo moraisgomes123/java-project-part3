@@ -1,7 +1,7 @@
 // MessageProcessor.java
 package org.example;
 
-import org.json.JSONArray;   // Used for handling JSON arrays
+import org.json.JSONArray;   // Used for handling JSON arrays (though not directly in current version)
 import org.json.JSONException; // Exception for issues with JSON parsing
 import org.json.JSONObject;  // Used for handling JSON objects
 
@@ -18,15 +18,11 @@ import java.util.Optional;  // For handling potential absence of search results
 
 public class MessageProcessor {
 
-    // --- File Name Constant ---
-    // Consolidated JSON file name for storing both sent and stored messages.
-    private static final String DATA_FILE_NAME = "quickChatData.json";
-
     // --- Message Storage Lists ---
     // These lists hold MessageData.messageData objects based on their status.
-    private List<MessageData.messageData> sentMessages;       // Messages that have been "sent" and will be persisted
-    private List<MessageData.messageData> disregardedMessages; // Messages that were "discarded" (not persisted)
-    private List<MessageData.messageData> storedMessages;     // Messages "stored for later" (also persisted)
+    private List<MessageData.messageData> sentMessages;       // Messages that have been "sent"
+    private List<MessageData.messageData> disregardedMessages; // Messages that were "discarded"
+    private List<MessageData.messageData> storedMessages;     // Messages "stored for later" (also persisted to JSON)
 
     // --- Helper Lists for Quick Lookups/Management ---
     // These lists are used to quickly check for existing hashes or IDs across all message types.
@@ -39,108 +35,60 @@ public class MessageProcessor {
         this.storedMessages = new ArrayList<>();
         this.messageHashes = new ArrayList<>();
         this.messageIDs = new ArrayList<>();
-        // It's generally good practice to load data upon initialization,
-        // but given the MainMenu explicitly calls load via an option,
-        // we'll keep the loading triggered by user action.
     }
 
     // --- Methods to Add Messages to Respective Lists ---
 
-    /**
-     * Adds a new message to the list of sent messages and persists all relevant data to JSON.
-     * @param msg The message data object to add.
-     */
     public void addSentMessage(MessageData.messageData msg) {
         sentMessages.add(msg);
         messageHashes.add(msg.getHash());
         messageIDs.add(msg.getId());
-        saveAllMessagesToJson(); // Persist all relevant data after adding a sent message
     }
 
-    /**
-     * Adds a new message to the list of disregarded messages.
-     * Disregarded messages are not persisted according to the user's requirements.
-     * @param msg The message data object to add.
-     */
     public void addDisregardedMessage(MessageData.messageData msg) {
         disregardedMessages.add(msg);
     }
 
-    /**
-     * Adds a new message to the list of stored messages and persists all relevant data to JSON.
-     * @param msg The message data object to add.
-     */
     public void addStoredMessage(MessageData.messageData msg) {
         storedMessages.add(msg);
         messageHashes.add(msg.getHash());
         messageIDs.add(msg.getId());
-        saveAllMessagesToJson(); // Persist all relevant data after adding a stored message
+        saveMessageToJsonFile(msg); // Persist to file immediately
     }
 
-    // --- JSON File Handling Methods (Consolidated) ---
+    // --- JSON File Handling Methods ---
 
-    /**
-     * Saves both sent and stored messages to a single JSON file (`quickChatData.json`).
-     * Disregarded messages are intentionally not persisted as per user requirements.
-     * The data is structured as a single JSON object containing two JSON arrays:
-     * "sentMessages" and "storedMessages". This method overwrites the file.
-     */
-    public void saveAllMessagesToJson() {
-        JSONObject rootJson = new JSONObject();
+    private void saveMessageToJsonFile(MessageData.messageData msg) {
+        JSONObject json = new JSONObject();
+        json.put("id", msg.getId());
+        json.put("recipient", msg.getRecipient());
+        json.put("messageText", msg.getMessageText());
+        json.put("hash", msg.getHash());
+        json.put("status", msg.getStatus());
 
-        // Prepare sent messages for JSON array
-        JSONArray sentMessagesArray = new JSONArray();
-        for (MessageData.messageData msg : sentMessages) {
-            JSONObject msgJson = new JSONObject();
-            msgJson.put("id", msg.getId());
-            msgJson.put("recipient", msg.getRecipient());
-            msgJson.put("messageText", msg.getMessageText());
-            msgJson.put("hash", msg.getHash());
-            msgJson.put("status", msg.getStatus());
-            sentMessagesArray.put(msgJson);
-        }
-        rootJson.put("sentMessages", sentMessagesArray); // Add sent messages array to root JSON
-
-        // Prepare stored messages for JSON array
-        JSONArray storedMessagesArray = new JSONArray();
-        for (MessageData.messageData msg : storedMessages) {
-            JSONObject msgJson = new JSONObject();
-            msgJson.put("id", msg.getId());
-            msgJson.put("recipient", msg.getRecipient());
-            msgJson.put("messageText", msg.getMessageText());
-            msgJson.put("hash", msg.getHash());
-            msgJson.put("status", msg.getStatus());
-            storedMessagesArray.put(msgJson);
-        }
-        rootJson.put("storedMessages", storedMessagesArray); // Add stored messages array to root JSON
-
-        // Write the complete JSON object to the file, overwriting existing content.
-        try (FileWriter file = new FileWriter(DATA_FILE_NAME)) {
-            file.write(rootJson.toString(4)); // Write JSON object with 4-space indentation for readability
+        try (FileWriter file = new FileWriter("storedMessages.json", true)) { // 'true' enables append mode
+            file.write(json.toString() + System.lineSeparator()); // Write JSON object followed by a new line
         } catch (IOException e) {
             // Display an error message if there's an issue writing to the file.
-            JOptionPane.showMessageDialog(null, "Error saving messages to JSON: " + e.getMessage(), "File Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Error saving message to JSON: " + e.getMessage(), "File Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     /**
-     * Loads both sent and stored messages from the consolidated JSON file (`quickChatData.json`).
-     * Clears existing sent and stored messages lists before loading to prevent duplicates.
-     * Populates the global messageHashes and messageIDs tracking lists based on the loaded messages.
+     * Loads stored messages from the "storedMessages.json" file.
+     * Clears existing stored messages before loading to prevent duplicates.
      *
-     * @return true if messages were successfully loaded (file existed and contained valid data),
-     * false otherwise (e.g., file not found, empty, or parsing error).
+     * @return true if messages were successfully loaded, false otherwise (e.g., file not found or empty).
      */
-    public boolean loadAllMessagesFromJson() {
+    public boolean loadStoredMessagesFromJson() {
         // Clear existing data to ensure a fresh load and prevent duplicate entries.
-        sentMessages.clear();
         storedMessages.clear();
-        messageHashes.clear(); // Clear global hash tracking list
-        messageIDs.clear();    // Clear global ID tracking list
+        messageHashes.clear(); // Clear hashes related to previously stored data
+        messageIDs.clear();    // Clear IDs related to previously stored data
 
-        File jsonFile = new File(DATA_FILE_NAME);
-        // Check if the file exists and is not empty.
-        if (!jsonFile.exists() || jsonFile.length() == 0) {
+        File jsonFile = new File("storedMessages.json");
+        if (!jsonFile.exists() || jsonFile.length() == 0) { // Check if file exists and is not empty
+            // JOptionPane.showMessageDialog(null, "No existing stored messages file found or file is empty.", "Info", JOptionPane.INFORMATION_MESSAGE);
             return false; // Indicate no messages to load
         }
 
@@ -152,70 +100,62 @@ public class MessageProcessor {
                 jsonContent.append((char) character);
             }
 
-            // Parse the entire file content as a single JSONObject.
-            JSONObject rootJson = new JSONObject(jsonContent.toString());
+            // Split the content into individual JSON strings based on line separators.
+            String[] lines = jsonContent.toString().split(System.lineSeparator());
             boolean messagesFound = false; // Flag to track if any valid messages are loaded
-
-            // --- Load Sent Messages ---
-            // Check if "sentMessages" array exists in the JSON.
-            if (rootJson.has("sentMessages")) {
-                JSONArray sentArray = rootJson.getJSONArray("sentMessages");
-                for (int i = 0; i < sentArray.length(); i++) {
-                    try {
-                        JSONObject json = sentArray.getJSONObject(i);
-                        // Extract message attributes from the JSON object.
-                        String id = json.getString("id");
-                        String recipient = json.getString("recipient");
-                        String messageText = json.getString("messageText");
-                        String hash = json.getString("hash");
-                        String status = json.getString("status");
-
-                        // Create a new messageData object and add it to the sentMessages list.
-                        MessageData.messageData msg = new MessageData.messageData(id, recipient, messageText, hash, status);
-                        sentMessages.add(msg);
-                        messageHashes.add(hash); // Add to global hash list
-                        messageIDs.add(id);      // Add to global ID list
-                        messagesFound = true;    // Set flag to true if at least one message is loaded
-                    } catch (JSONException e) {
-                        System.err.println("Skipping malformed sent message JSON entry: " + sentArray.getJSONObject(i).toString() + " Error: " + e.getMessage());
-                    }
+            for (String line : lines) {
+                if (line.trim().isEmpty()) {
+                    continue; // Skip any empty lines in the file.
                 }
-            }
+                try {
+                    // Parse each line as a JSONObject.
+                    JSONObject json = new JSONObject(line);
+                    // Extract message attributes from the JSON object.
+                    String id = json.getString("id");
+                    String recipient = json.getString("recipient");
+                    String messageText = json.getString("messageText");
+                    String hash = json.getString("hash");
+                    String status = json.getString("status");
 
-            // --- Load Stored Messages ---
-            // Check if "storedMessages" array exists in the JSON.
-            if (rootJson.has("storedMessages")) {
-                JSONArray storedArray = rootJson.getJSONArray("storedMessages");
-                for (int i = 0; i < storedArray.length(); i++) {
-                    try {
-                        JSONObject json = storedArray.getJSONObject(i);
-                        // Extract message attributes from the JSON object.
-                        String id = json.getString("id");
-                        String recipient = json.getString("recipient");
-                        String messageText = json.getString("messageText");
-                        String hash = json.getString("hash");
-                        String status = json.getString("status");
-
-                        // Create a new messageData object and add it to the storedMessages list.
-                        MessageData.messageData msg = new MessageData.messageData(id, recipient, messageText, hash, status);
-                        storedMessages.add(msg);
-                        messageHashes.add(hash); // Add to global hash list
-                        messageIDs.add(id);      // Add to global ID list
-                        messagesFound = true;    // Set flag to true if at least one message is loaded
-                    } catch (JSONException e) {
-                        System.err.println("Skipping malformed stored message JSON entry: " + storedArray.getJSONObject(i).toString() + " Error: " + e.getMessage());
-                    }
+                    // Create a new messageData object and add it to the list.
+                    MessageData.messageData msg = new MessageData.messageData(id, recipient, messageText, hash, status);
+                    storedMessages.add(msg);
+                    messageHashes.add(hash); // Add to global hash list
+                    messageIDs.add(id);      // Add to global ID list
+                    messagesFound = true;    // Set flag to true if at least one message is loaded
+                } catch (JSONException e) {
+                    // Log an error for malformed JSON lines but continue processing others.
+                    System.err.println("Skipping malformed JSON line in storedMessages.json: " + line + " Error: " + e.getMessage());
                 }
             }
             return messagesFound; // Return true if any messages were loaded, false otherwise
-        } catch (IOException | JSONException e) {
-            // Inform the user if there's an error reading or parsing the file.
-            JOptionPane.showMessageDialog(null, "Error loading messages from JSON file: " + e.getMessage(), "File Error", JOptionPane.ERROR_MESSAGE);
+        } catch (IOException e) {
+            // Inform the user if there's an error reading it.
+            JOptionPane.showMessageDialog(null, "Error reading stored messages file: " + e.getMessage(), "File Error", JOptionPane.ERROR_MESSAGE);
             return false;
         }
     }
 
-    // --- Message Display and Query Methods (No significant changes needed here) ---
+    private void rewriteStoredMessagesJson() {
+        try (FileWriter file = new FileWriter("storedMessages.json")) { // No append mode (false by default), overwrites file
+            for (MessageData.messageData msg : storedMessages) {
+                // Convert each messageData object back to a JSONObject.
+                JSONObject json = new JSONObject();
+                json.put("id", msg.getId());
+                json.put("recipient", msg.getRecipient());
+                json.put("messageText", msg.getMessageText());
+                json.put("hash", msg.getHash());
+                json.put("status", msg.getStatus());
+                // Write the JSON object followed by a new line.
+                file.write(json.toString() + System.lineSeparator());
+            }
+        } catch (IOException e) {
+            // Display an error message if rewriting the file fails.
+            JOptionPane.showMessageDialog(null, "Error rewriting JSON file: " + e.getMessage(), "File Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // --- Message Display and Query Methods ---
 
     public void displaySentMessageSendersAndRecipients() {
         if (sentMessages.isEmpty()) {
@@ -264,6 +204,7 @@ public class MessageProcessor {
                             "Length: " + maxLength + " characters",
                     "Longest Sent Message", JOptionPane.INFORMATION_MESSAGE);
         }
+        // No else needed here, as the initial isEmpty() check covers the no messages case.
     }
 
     public void searchMessageById(String messageId) {
@@ -341,12 +282,6 @@ public class MessageProcessor {
         }
     }
 
-    /**
-     * Attempts to delete a message by its unique hash from sent, disregarded, or stored messages.
-     * If found in sent or stored messages, it also updates the JSON file.
-     * @param messageHash The hash of the message to delete.
-     * @return true if the message was found and deleted, false otherwise.
-     */
     public boolean deleteMessageByHash(String messageHash) {
         boolean removed = false;
 
@@ -367,23 +302,23 @@ public class MessageProcessor {
                 messageIDs.remove(msg.getId());   // Remove from global ID tracking.
                 messageHashes.remove(msg.getHash()); // Remove from global hash tracking.
                 removed = true;
+                JOptionPane.showMessageDialog(null, "Message with hash '" + messageHash + "' deleted from sent messages.", "Deletion Successful", JOptionPane.INFORMATION_MESSAGE);
                 this.sentMessages = tempSent; // Update the original list with the modified temporary list.
-                saveAllMessagesToJson(); // Save changes to the JSON file immediately after deletion.
-                JOptionPane.showMessageDialog(null, "Message with hash '" + messageHash + "' deleted from sent messages and JSON file.", "Deletion Successful", JOptionPane.INFORMATION_MESSAGE);
                 return true; // Exit immediately upon successful deletion.
             }
         }
 
         // --- Remove from disregarded messages ---
-        // Disregarded messages are not persisted, so no JSON update is needed here.
         Iterator<MessageData.messageData> disregardedIterator = tempDisregarded.iterator();
         while (disregardedIterator.hasNext()) {
             MessageData.messageData msg = disregardedIterator.next();
             if (msg.getHash().equalsIgnoreCase(messageHash)) {
                 disregardedIterator.remove(); // Remove from temporary list.
+                // Hashes/IDs for disregarded messages are typically not in global tracking lists,
+                // so no need to remove from messageIDs/messageHashes here.
                 removed = true;
-                this.disregardedMessages = tempDisregarded; // Update the original list.
                 JOptionPane.showMessageDialog(null, "Message with hash '" + messageHash + "' deleted from disregarded messages.", "Deletion Successful", JOptionPane.INFORMATION_MESSAGE);
+                this.disregardedMessages = tempDisregarded; // Update the original list.
                 return true; // Exit immediately upon successful deletion.
             }
         }
@@ -396,9 +331,9 @@ public class MessageProcessor {
                 storedIterator.remove(); // Remove from temporary list.
                 messageHashes.remove(msg.getHash()); // Remove from global hash tracking.
                 messageIDs.remove(msg.getId());      // Remove from global ID tracking.
-                removed = true;
                 this.storedMessages = tempStored; // Update the original list.
-                saveAllMessagesToJson(); // Rewrite the JSON file *without* the deleted message.
+                rewriteStoredMessagesJson(); // Rewrite the JSON file *without* the deleted message.
+                removed = true;
                 JOptionPane.showMessageDialog(null, "Message with hash '" + messageHash + "' deleted from stored messages and JSON file.", "Deletion Successful", JOptionPane.INFORMATION_MESSAGE);
                 return true; // Exit immediately upon successful deletion.
             }
