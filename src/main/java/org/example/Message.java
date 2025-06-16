@@ -4,7 +4,6 @@ import javax.swing.*;
 import java.util.*;
 import java.awt.Dimension;
 
-
 public class Message {
 
     // A static reference to the MessageProcessor to manage all message data.
@@ -143,10 +142,24 @@ public class Message {
         long rawIdPart = 100_000_000L + (long) (Math.random() * 900_000_000L);
         String messageID = "MSG" + String.valueOf(rawIdPart).substring(0, 7) + String.format("%02d", messageNumber % 100);
 
+        // --- Sender Input and Validation Loop ---
+        String sender;
+        while (true) {
+            sender = JOptionPane.showInputDialog("Enter your name (sender):\n(Message #" + messageNumber + "/" + allowedMessagesInSession + ")");
+            if (sender == null) { // User clicked Cancel.
+                JOptionPane.showMessageDialog(null, "Message creation cancelled for message #" + messageNumber + ".");
+                return true; // Indicate cancellation.
+            }
+            if (!sender.trim().isEmpty()) {
+                break; // Valid sender, exit loop.
+            }
+            JOptionPane.showMessageDialog(null, "Sender name cannot be empty.");
+        }
+
         // --- Recipient Input and Validation Loop ---
         String recipient;
         while (true) {
-            recipient = JOptionPane.showInputDialog("Enter Recipient’s international cell number (e.g., +27123456789, max 15 characters including +):\n(Message #" + messageNumber + "/" + allowedMessagesInSession + ")");
+            recipient = JOptionPane.showInputDialog("Enter Recipient's international cell number (e.g., +27123456789, max 15 characters including +):\n(Message #" + messageNumber + "/" + allowedMessagesInSession + ")");
             if (recipient == null) { // User clicked Cancel.
                 JOptionPane.showMessageDialog(null, "Message creation cancelled for message #" + messageNumber + ".");
                 return true; // Indicate cancellation.
@@ -183,7 +196,8 @@ public class Message {
 
         // Create a new MessageData.messageData object with the gathered details.
         // The status is initially empty and will be set based on user's action choice.
-        MessageData.messageData newMessage = new MessageData.messageData(messageID, recipient, messageText, messageHash, "");
+        MessageData.messageData newMessage = new MessageData.messageData(
+                messageID, sender, recipient, messageText, messageHash, "");
 
         // --- Action Choice for the Message ---
         String actionChoiceStr = JOptionPane.showInputDialog(null,

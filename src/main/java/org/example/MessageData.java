@@ -1,20 +1,22 @@
-// MessageData.java
+
 package org.example;
 
 import javax.swing.*;
 
 public class MessageData {
 
-    public static class messageData { // This inner class name remains lowercase 'messageData' as is common for inner record-like classes
-        // Attributes for message details
-        private String id;// Unique message ID
-        private String recipient;   // Recipient's cell number
-        private String messageText; // Content of the message
-        private String hash;        // Unique hash for the message
-        private String status;      // Status of the message (e.g., "SENT", "PENDING")
+    public static class messageData {
+        private String id;
+        private String sender;      // Added sender field
+        private String recipient;
+        private String messageText;
+        private String hash;
+        private String status;
 
-        public messageData(String id, String recipient, String messageText, String hash, String status) {
+        // Updated constructor to include sender
+        public messageData(String id, String sender, String recipient, String messageText, String hash, String status) {
             this.id = id;
+            this.sender = sender;
             this.recipient = recipient;
             this.messageText = messageText;
             this.hash = hash;
@@ -23,13 +25,16 @@ public class MessageData {
 
         @Override
         public String toString() {
-            return "ID: " + id + ", To: " + recipient + ", Message: " + messageText +
-                    ", Hash: " + hash + ", Status: " + status;
+            return "id: " + id + ", sender: " + sender + ", recipient: " + recipient +
+                    ", Message: " + messageText + ", Hash: " + hash +
+                    ", Status: " + status;
         }
-
         // --- Getters ---
         public String getId() {
             return id;
+        }
+        public String getSender() {
+            return sender;
         }
 
         public String getRecipient() {
@@ -52,7 +57,9 @@ public class MessageData {
         public void setId(String id) {
             this.id = id;
         }
-
+        public void setSender(String sender) {
+            this.sender = sender;
+        }
 
         public void setRecipient(String recipient) {
             this.recipient = recipient;
