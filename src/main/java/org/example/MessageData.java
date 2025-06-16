@@ -7,7 +7,7 @@ public class MessageData {
 
     public static class messageData { // This inner class name remains lowercase 'messageData' as is common for inner record-like classes
         // Attributes for message details
-        private String id;          // Unique message ID
+        private String id;// Unique message ID
         private String recipient;   // Recipient's cell number
         private String messageText; // Content of the message
         private String hash;        // Unique hash for the message
@@ -52,6 +52,7 @@ public class MessageData {
         public void setId(String id) {
             this.id = id;
         }
+
 
         public void setRecipient(String recipient) {
             this.recipient = recipient;

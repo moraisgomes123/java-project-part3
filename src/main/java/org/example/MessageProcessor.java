@@ -112,6 +112,7 @@ public class MessageProcessor {
                     JSONObject json = new JSONObject(line);
                     // Extract message attributes from the JSON object.
                     String id = json.getString("id");
+                    String sender = json.getString("sender");
                     String recipient = json.getString("recipient");
                     String messageText = json.getString("messageText");
                     String hash = json.getString("hash");
@@ -163,9 +164,9 @@ public class MessageProcessor {
             return;
         }
 
-        StringBuilder sb = new StringBuilder("--- Sent Messages (Sender: You) ---\n");
+        StringBuilder sb = new StringBuilder("--- Sent Messages(sender: You---\n");
         for (MessageData.messageData msg : sentMessages) {
-            sb.append("Recipient: ").append(msg.getRecipient())
+                        sb.append("Recipient: ").append(msg.getRecipient())
                     .append(", Message ID: ").append(msg.getId())
                     .append("\n");
         }

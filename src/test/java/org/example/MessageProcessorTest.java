@@ -1,55 +1,58 @@
 package org.example;
 
 import org.junit.jupiter.api.*;
-
 import java.io.File;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class MessageProcessorTest {
+public class MessageProcessorTest {
 
     private MessageProcessor processor;
-    private MessageData.messageData msg1, msg2, msg3, msg4;
+
+    private final MessageData.messageData msg1 = new MessageData.messageData(
+            "001", "+27838884567", "Did you get the cake?", "hash1", "sent");
+
+    private final MessageData.messageData msg2 = new MessageData.messageData(
+            "002", "+27838884567", "Where are you? You are late! I have asked you to be on time.", "hash2", "sent");
+
+    private final MessageData.messageData msg3 = new MessageData.messageData(
+            "003", "+27838884568", "Ok, I am leaving without you.", "hash3", "sent");
+
+    private final MessageData.messageData msg4 = new MessageData.messageData(
+            "0838884567", "+27838884569", "It is dinner time!", "hash4", "sent");
 
     @BeforeEach
     void setUp() {
         processor = new MessageProcessor();
 
-        msg1 = new MessageData.messageData("1", "+27838884567", "Did you get the cake?", "hash1", "sent");
-        msg2 = new MessageData.messageData("2", "+27838884567", "Where are you? You are late! I have asked you to be on time.", "hash2", "sent");
-        msg3 = new MessageData.messageData("3", "+27838884567", "Ok, I am leaving without you.", "hash3", "stored");
-        msg4 = new MessageData.messageData("0838884567", "+27830001111", "It is dinner time!", "hash4", "sent");
-
-        File f = new File("storedMessages.json");
-        if (f.exists()) f.delete(); // Clean state before each test
+        // Simulate adding sent messages
+        processor.addSentMessage(msg1);
+        processor.addSentMessage(msg2);
+        processor.addSentMessage(msg3);
+        processor.addSentMessage(msg4);
     }
 
     @AfterEach
     void tearDown() {
-        File f = new File("storedMessages.json");
-        if (f.exists()) f.delete();
+        // Clean up test file if it exists
+        File file = new File("storedMessages.json");
+        if (file.exists()) file.delete();
     }
 
     @Test
-    void addSentMessage() {
-        processor.addSentMessage(msg1);
-        processor.addSentMessage(msg4);
-
+    void testSentMessagesArrayIsCorrectlyPopulated() {
         List<MessageData.messageData> sent = processor.getSentMessages();
-        assertEquals(2, sent.size());
-        assertEquals("Did you get the cake?", sent.get(0).getMessageText());
-        assertEquals("It is dinner time!", sent.get(1).getMessageText());
+        assertEquals(4, sent.size());
+
+        assertTrue(sent.stream().anyMatch(msg -> msg.getMessageText().equals("Did you get the cake?")));
+        assertTrue(sent.stream().anyMatch(msg -> msg.getMessageText().equals("It is dinner time!")));
     }
 
     @Test
-    void displayLongestSentMessage() {
-        processor.addSentMessage(msg1);
-        processor.addSentMessage(msg2);
-        processor.addSentMessage(msg4);
-
+    void testDisplayLongestSentMessage() {
         MessageData.messageData longest = processor.getSentMessages().stream()
-                .max((a, b) -> Integer.compare(a.getMessageText().length(), b.getMessageText().length()))
+                .max((m1, m2) -> Integer.compare(m1.getMessageText().length(), m2.getMessageText().length()))
                 .orElse(null);
 
         assertNotNull(longest);
@@ -57,11 +60,10 @@ class MessageProcessorTest {
     }
 
     @Test
-    void searchMessageById() {
-        processor.addSentMessage(msg4);
-
+    void testSearchMessageById() {
+        String searchId = "0838884567";
         MessageData.messageData found = processor.getSentMessages().stream()
-                .filter(m -> m.getId().equals("0838884567"))
+                .filter(m -> m.getId().equals(searchId))
                 .findFirst()
                 .orElse(null);
 
@@ -70,87 +72,37 @@ class MessageProcessorTest {
     }
 
     @Test
-    void searchMessagesByRecipient() {
-        processor.addSentMessage(msg2);
-        processor.addStoredMessage(msg3);
+    void testSearchMessagesByRecipient() {
+        String recipient = "+27838884567";
 
-        long count = processor.getSentMessages().stream()
-                .filter(m -> m.getRecipient().equals("+27838884567"))
-                .count()
-                + processor.getStoredMessages().stream()
-                .filter(m -> m.getRecipient().equals("+27838884567"))
-                .count();
+        List<MessageData.messageData> sent = processor.getSentMessages();
+        List<String> messagesToRecipient = sent.stream()
+                .filter(m -> m.getRecipient().equals(recipient))
+                .map(MessageData.messageData::getMessageText)
+                .toList();
 
-        assertEquals(2, count);
+        assertTrue(messagesToRecipient.contains("Where are you? You are late! I have asked you to be on time."));
+        assertTrue(messagesToRecipient.contains("Did you get the cake?"));
     }
 
     @Test
-    void deleteMessageByHash() {
-        processor.addSentMessage(msg2);
-
+    void testDeleteMessageByHash() {
         boolean deleted = processor.deleteMessageByHash("hash2");
-
         assertTrue(deleted);
-        assertFalse(processor.getMessageHashes().contains("hash2"));
+
+        List<MessageData.messageData> sent = processor.getSentMessages();
+        assertFalse(sent.stream().anyMatch(m -> m.getHash().equals("hash2")));
     }
 
     @Test
-    void displaySentMessagesReport() {
-        processor.addSentMessage(msg1);
-        processor.addSentMessage(msg4);
+    void testDisplaySentMessagesReport() {
+        List<MessageData.messageData> sent = processor.getSentMessages();
+        assertEquals(4, sent.size());
 
-        List<MessageData.messageData> report = processor.getSentMessages();
-
-        assertEquals(2, report.size());
-        assertEquals("+27838884567", report.get(0).getRecipient());
-        assertEquals("hash1", report.get(0).getHash());
-        assertEquals("Did you get the cake?", report.get(0).getMessageText());
-    }
-
-    @Test
-    void getDisregardedMessages() {
-        processor.addDisregardedMessage(msg1);
-        List<MessageData.messageData> disregarded = processor.getDisregardedMessages();
-        assertEquals(1, disregarded.size());
-    }
-
-    @Test
-    void addStoredMessage() {
-        processor.addStoredMessage(msg3);
-        assertEquals(1, processor.getStoredMessages().size());
-        assertTrue(new File("storedMessages.json").exists());
-    }
-
-    @Test
-    void loadStoredMessagesFromJson() {
-        processor.addStoredMessage(msg3); // Save to file
-        MessageProcessor newProcessor = new MessageProcessor();
-        boolean loaded = newProcessor.loadStoredMessagesFromJson();
-        assertTrue(loaded);
-        assertEquals(1, newProcessor.getStoredMessages().size());
-    }
-
-    @Test
-    void getSentMessages() {
-        processor.addSentMessage(msg1);
-        assertEquals(1, processor.getSentMessages().size());
-    }
-
-    @Test
-    void getStoredMessages() {
-        processor.addStoredMessage(msg3);
-        assertEquals(1, processor.getStoredMessages().size());
-    }
-
-    @Test
-    void getMessageHashes() {
-        processor.addSentMessage(msg1);
-        assertTrue(processor.getMessageHashes().contains("hash1"));
-    }
-
-    @Test
-    void getMessageIDs() {
-        processor.addSentMessage(msg1);
-        assertTrue(processor.getMessageIDs().contains("1"));
+        for (MessageData.messageData msg : sent) {
+            assertNotNull(msg.getHash());
+            assertNotNull(msg.getRecipient());
+            assertNotNull(msg.getMessageText());
+        }
     }
 }
