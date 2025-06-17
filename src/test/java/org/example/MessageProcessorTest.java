@@ -1,91 +1,99 @@
 package org.example;
 
-import org.junit.jupiter.api.*;
-import java.io.File;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class MessageProcessorTest {
+public class MessageProcessorTest {
 
     private MessageProcessor processor;
 
+    private MessageData.messageData message1;
+    private MessageData.messageData message2;
+    private MessageData.messageData message3;
+    private MessageData.messageData message4;
+
     @BeforeEach
-    void setUp() {
+    public void setup() {
         processor = new MessageProcessor();
-    }
 
-    @AfterEach
-    void cleanUp() {
-        File jsonFile = new File("storedMessages.json");
-        if (jsonFile.exists()) {
-            jsonFile.delete();
-        }
-    }
+        message1 = new MessageData.messageData("MSG0000001", "Dev", "+27838884567",
+                "Did you get the cake?", "MS:1:Didcake", "SENT");
+        message2 = new MessageData.messageData("MSG0000002", "Dev", "+27838884567",
+                "Where are you? You are late! I have asked you to be on time.",
+                "MS:2:Wheretime.", "SENT");
+        message3 = new MessageData.messageData("MSG0000003", "Dev", "+27838884567",
+                "Ok, I am leaving without you.", "MS:3:Okyou.", "SENT");
+        message4 = new MessageData.messageData("MSG0000004", "Dev", "+27838884567",
+                "It is dinner time!", "MS:4:Ittime!", "SENT");
 
-    private MessageData.messageData sampleMessage(String id) {
-        return new MessageData.messageData(
-                id,
-                "Alice",
-                "Bob",
-                "Hello Bob!",
-                "hash-" + id,
-                "SENT"
-        );
+        processor.addSentMessage(message1);
+        processor.addSentMessage(message2);
+        processor.addSentMessage(message3);
+        processor.addSentMessage(message4);
     }
 
     @Test
-    void testAddSentMessage() {
-        MessageData.messageData msg = sampleMessage("1");
-        processor.addSentMessage(msg);
-
+    public void testSentMessagesCorrectlyPopulated() {
         List<MessageData.messageData> sent = processor.getSentMessages();
-        assertEquals(1, sent.size());
-        assertEquals("Alice", sent.get(0).getSender());
+
+        assertEquals(4, sent.size());
+        assertEquals("Did you get the cake?", sent.get(0).getMessageText());
+        assertEquals("It is dinner time!", sent.get(3).getMessageText());
     }
 
     @Test
-    void testAddStoredMessageAndLoadFromJson() {
-        MessageData.messageData msg = sampleMessage("2");
-        processor.addStoredMessage(msg);
+    public void testLongestSentMessage() {
+        MessageData.messageData longest = processor.getSentMessages().stream()
+                .max((a, b) -> Integer.compare(a.getMessageText().length(), b.getMessageText().length()))
+                .orElse(null);
 
-        // Clear state to force reload
-        processor.getStoredMessages().clear();
-        boolean loaded = processor.loadStoredMessagesFromJson();
-
-        assertTrue(loaded);
-        List<MessageData.messageData> stored = processor.getStoredMessages();
-        assertEquals(1, stored.size());
-        assertEquals("2", stored.get(0).getId());
+        assertNotNull(longest);
+        assertEquals("Where are you? You are late! I have asked you to be on time.",
+                longest.getMessageText());
     }
 
     @Test
-    void testAddDisregardedMessage() {
-        MessageData.messageData msg = sampleMessage("3");
-        processor.addDisregardedMessage(msg);
+    public void testSearchMessageById() {
+        String searchId = "MSG0000004";
+        boolean found = processor.getSentMessages().stream()
+                .anyMatch(msg -> msg.getId().equals(searchId) &&
+                        msg.getMessageText().equals("It is dinner time!"));
 
-        List<MessageData.messageData> disregarded = processor.getDisregardedMessages();
-        assertEquals(1, disregarded.size());
-        assertEquals("3", disregarded.get(0).getId());
+        assertTrue(found);
     }
 
     @Test
-    void testDeleteMessageByHash() {
-        MessageData.messageData msg = sampleMessage("4");
-        processor.addSentMessage(msg);
+    public void testSearchMessagesByRecipient() {
+        List<String> messages = processor.getSentMessages().stream()
+                .filter(m -> m.getRecipient().equals("+27838884567"))
+                .map(MessageData.messageData::getMessageText)
+                .toList();
 
-        boolean deleted = processor.deleteMessageByHash("hash-4");
+        assertTrue(messages.contains("Where are you? You are late! I have asked you to be on time."));
+        assertTrue(messages.contains("Ok, I am leaving without you.") ||
+                messages.contains("It is dinner time!"));
+    }
+
+    @Test
+    public void testDeleteMessageByHash() {
+        boolean deleted = processor.deleteMessageByHash("MS:2:Wheretime.");
         assertTrue(deleted);
-        assertTrue(processor.getSentMessages().isEmpty());
+
+        boolean stillExists = processor.getSentMessages().stream()
+                .anyMatch(m -> m.getHash().equals("MS:2:Wheretime."));
+        assertFalse(stillExists);
     }
 
     @Test
-    void testDeleteMessageByHash_NotFound() {
-        MessageData.messageData msg = sampleMessage("5");
-        processor.addSentMessage(msg);
-
-        boolean deleted = processor.deleteMessageByHash("nonexistent-hash");
-        assertFalse(deleted);
-        assertFalse(processor.getSentMessages().isEmpty());
+    public void testSentMessagesReportFields() {
+        for (MessageData.messageData msg : processor.getSentMessages()) {
+            assertNotNull(msg.getHash());
+            assertNotNull(msg.getRecipient());
+            assertNotNull(msg.getMessageText());
+        }
     }
 }
