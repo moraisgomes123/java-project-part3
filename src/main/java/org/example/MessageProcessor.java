@@ -10,14 +10,11 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.*;
 import java.util.List;
-import java.util.Optional;
 
 public class MessageProcessor {
 
-    // --- Message Storage Lists ---
     private List<MessageData.messageData> sentMessages;
     private List<MessageData.messageData> disregardedMessages;
     private List<MessageData.messageData> storedMessages;
@@ -32,7 +29,6 @@ public class MessageProcessor {
         this.messageIDs = new ArrayList<>();
     }
 
-    // --- Methods to Add Messages to Respective Lists ---
     public void addSentMessage(MessageData.messageData msg) {
         sentMessages.add(msg);
         messageHashes.add(msg.getHash());
@@ -50,7 +46,6 @@ public class MessageProcessor {
         saveMessageToJsonFile(msg);
     }
 
-    // --- JSON File Handling Methods ---
     private void saveMessageToJsonFile(MessageData.messageData msg) {
         JSONObject json = new JSONObject();
         json.put("id", msg.getId());
@@ -63,8 +58,7 @@ public class MessageProcessor {
         try (FileWriter file = new FileWriter("storedMessages.json", true)) {
             file.write(json.toString() + System.lineSeparator());
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(null, "Error saving message to JSON: " + e.getMessage(),
-                    "File Error", JOptionPane.ERROR_MESSAGE);
+            showErrorMessage("Error saving message to JSON: " + e.getMessage(), "File Error");
         }
     }
 
@@ -91,27 +85,25 @@ public class MessageProcessor {
                 if (line.trim().isEmpty()) continue;
                 try {
                     JSONObject json = new JSONObject(line);
-                    String id = json.getString("id");
-                    String sender = json.getString("sender");
-                    String recipient = json.getString("recipient");
-                    String messageText = json.getString("messageText");
-                    String hash = json.getString("hash");
-                    String status = json.getString("status");
-
                     MessageData.messageData msg = new MessageData.messageData(
-                            id, sender, recipient, messageText, hash, status);
+                            json.getString("id"),
+                            json.getString("sender"),
+                            json.getString("recipient"),
+                            json.getString("messageText"),
+                            json.getString("hash"),
+                            json.getString("status")
+                    );
                     storedMessages.add(msg);
-                    messageHashes.add(hash);
-                    messageIDs.add(id);
+                    messageHashes.add(msg.getHash());
+                    messageIDs.add(msg.getId());
                     messagesFound = true;
                 } catch (JSONException e) {
-                    System.err.println("Skipping malformed JSON line: " + line + " Error: " + e.getMessage());
+                    System.err.println("Skipping malformed JSON line: " + line);
                 }
             }
             return messagesFound;
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(null, "Error reading stored messages: " + e.getMessage(),
-                    "File Error", JOptionPane.ERROR_MESSAGE);
+            showErrorMessage("Error reading stored messages: " + e.getMessage(), "File Error");
             return false;
         }
     }
@@ -129,16 +121,13 @@ public class MessageProcessor {
                 file.write(json.toString() + System.lineSeparator());
             }
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(null, "Error rewriting JSON file: " + e.getMessage(),
-                    "File Error", JOptionPane.ERROR_MESSAGE);
+            showErrorMessage("Error rewriting JSON file: " + e.getMessage(), "File Error");
         }
     }
 
-    // --- Message Display and Query Methods ---
     public void displaySentMessageSendersAndRecipients() {
         if (sentMessages.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "No sent messages to display.",
-                    "Sent Messages", JOptionPane.INFORMATION_MESSAGE);
+            showInfoMessage("No sent messages to display.", "Sent Messages");
             return;
         }
 
@@ -150,74 +139,54 @@ public class MessageProcessor {
                     .append("\n");
         }
 
-        JTextArea textArea = new JTextArea(sb.toString());
-        textArea.setEditable(false);
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setPreferredSize(new Dimension(400, 300));
-        JOptionPane.showMessageDialog(null, scrollPane,
-                "Sent Messages Detail", JOptionPane.INFORMATION_MESSAGE);
+        showScrollableMessage(sb.toString(), "Sent Messages Detail", 400, 300);
     }
 
     public void displayLongestSentMessage() {
         if (sentMessages.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "No sent messages to analyze.",
-                    "Longest Message", JOptionPane.INFORMATION_MESSAGE);
+            showInfoMessage("No sent messages to analyze.", "Longest Message");
             return;
         }
 
-        MessageData.messageData longestMessage = null;
+        MessageData.messageData longest = null;
         int maxLength = -1;
 
         for (MessageData.messageData msg : sentMessages) {
             if (msg.getMessageText().length() > maxLength) {
                 maxLength = msg.getMessageText().length();
-                longestMessage = msg;
+                longest = msg;
             }
         }
 
-        if (longestMessage != null) {
-            JOptionPane.showMessageDialog(null,
+        if (longest != null) {
+            showInfoMessage(
                     "--- Longest Sent Message ---\n" +
-                            "Sender: " + longestMessage.getSender() + "\n" +
-                            "Recipient: " + longestMessage.getRecipient() + "\n" +
-                            "ID: " + longestMessage.getId() + "\n" +
-                            "Message: " + longestMessage.getMessageText() + "\n" +
+                            "Sender: " + longest.getSender() + "\n" +
+                            "Recipient: " + longest.getRecipient() + "\n" +
+                            "ID: " + longest.getId() + "\n" +
+                            "Message: " + longest.getMessageText() + "\n" +
                             "Length: " + maxLength + " characters",
-                    "Longest Sent Message", JOptionPane.INFORMATION_MESSAGE);
+                    "Longest Sent Message"
+            );
         }
     }
 
     public void searchMessageById(String messageId) {
-        Optional<MessageData.messageData> foundMsg = Optional.empty();
+        Optional<MessageData.messageData> found = findMessageById(messageId);
 
-        foundMsg = sentMessages.stream()
-                .filter(msg -> msg.getId().equals(messageId))
-                .findFirst();
-
-        if (foundMsg.isEmpty()) {
-            foundMsg = disregardedMessages.stream()
-                    .filter(msg -> msg.getId().equals(messageId))
-                    .findFirst();
-        }
-        if (foundMsg.isEmpty()) {
-            foundMsg = storedMessages.stream()
-                    .filter(msg -> msg.getId().equals(messageId))
-                    .findFirst();
-        }
-
-        if (foundMsg.isPresent()) {
-            MessageData.messageData msg = foundMsg.get();
-            JOptionPane.showMessageDialog(null,
+        if (found.isPresent()) {
+            MessageData.messageData msg = found.get();
+            showInfoMessage(
                     "--- Message Details (ID: " + messageId + ") ---\n" +
                             "Sender: " + msg.getSender() + "\n" +
                             "Recipient: " + msg.getRecipient() + "\n" +
                             "Message: " + msg.getMessageText() + "\n" +
                             "Hash: " + msg.getHash() + "\n" +
                             "Status: " + msg.getStatus(),
-                    "Search Result", JOptionPane.INFORMATION_MESSAGE);
+                    "Search Result"
+            );
         } else {
-            JOptionPane.showMessageDialog(null, "Message with ID '" + messageId + "' not found.",
-                    "Search Result", JOptionPane.INFORMATION_MESSAGE);
+            showInfoMessage("Message with ID '" + messageId + "' not found.", "Search Result");
         }
     }
 
@@ -225,25 +194,7 @@ public class MessageProcessor {
         StringBuilder sb = new StringBuilder("--- Messages to: " + recipient + " ---\n");
         boolean found = false;
 
-        for (MessageData.messageData msg : sentMessages) {
-            if (msg.getRecipient().equals(recipient)) {
-                sb.append("Sender: ").append(msg.getSender()).append("\n")
-                        .append("ID: ").append(msg.getId()).append("\n")
-                        .append("Message: '").append(msg.getMessageText()).append("'\n")
-                        .append("Status: ").append(msg.getStatus()).append("\n---\n");
-                found = true;
-            }
-        }
-        for (MessageData.messageData msg : disregardedMessages) {
-            if (msg.getRecipient().equals(recipient)) {
-                sb.append("Sender: ").append(msg.getSender()).append("\n")
-                        .append("ID: ").append(msg.getId()).append("\n")
-                        .append("Message: '").append(msg.getMessageText()).append("'\n")
-                        .append("Status: ").append(msg.getStatus()).append("\n---\n");
-                found = true;
-            }
-        }
-        for (MessageData.messageData msg : storedMessages) {
+        for (MessageData.messageData msg : getAllMessages()) {
             if (msg.getRecipient().equals(recipient)) {
                 sb.append("Sender: ").append(msg.getSender()).append("\n")
                         .append("ID: ").append(msg.getId()).append("\n")
@@ -254,79 +205,58 @@ public class MessageProcessor {
         }
 
         if (found) {
-            JTextArea textArea = new JTextArea(sb.toString());
-            textArea.setEditable(false);
-            JScrollPane scrollPane = new JScrollPane(textArea);
-            scrollPane.setPreferredSize(new Dimension(500, 400));
-            JOptionPane.showMessageDialog(null, scrollPane,
-                    "Messages by Recipient", JOptionPane.INFORMATION_MESSAGE);
+            showScrollableMessage(sb.toString(), "Messages by Recipient", 500, 400);
         } else {
-            JOptionPane.showMessageDialog(null, "No messages found for recipient '" + recipient + "'.",
-                    "Messages by Recipient", JOptionPane.INFORMATION_MESSAGE);
+            showInfoMessage("No messages found for recipient '" + recipient + "'.",
+                    "Messages by Recipient");
         }
     }
 
     public boolean deleteMessageByHash(String messageHash) {
         boolean removed = false;
-        List<MessageData.messageData> tempSent = new ArrayList<>(sentMessages);
-        List<MessageData.messageData> tempDisregarded = new ArrayList<>(disregardedMessages);
-        List<MessageData.messageData> tempStored = new ArrayList<>(storedMessages);
 
-        Iterator<MessageData.messageData> sentIterator = tempSent.iterator();
-        while (sentIterator.hasNext()) {
-            MessageData.messageData msg = sentIterator.next();
+        Iterator<MessageData.messageData> it = sentMessages.iterator();
+        while (it.hasNext()) {
+            MessageData.messageData msg = it.next();
             if (msg.getHash().equalsIgnoreCase(messageHash)) {
-                sentIterator.remove();
+                it.remove();
                 messageIDs.remove(msg.getId());
                 messageHashes.remove(msg.getHash());
-                removed = true;
-                this.sentMessages = tempSent;
-                JOptionPane.showMessageDialog(null, "Message deleted from sent messages.",
-                        "Deletion Successful", JOptionPane.INFORMATION_MESSAGE);
+                showInfoMessage("Message deleted from sent messages.", "Deletion Successful");
                 return true;
             }
         }
 
-        Iterator<MessageData.messageData> disregardedIterator = tempDisregarded.iterator();
-        while (disregardedIterator.hasNext()) {
-            MessageData.messageData msg = disregardedIterator.next();
+        it = disregardedMessages.iterator();
+        while (it.hasNext()) {
+            MessageData.messageData msg = it.next();
             if (msg.getHash().equalsIgnoreCase(messageHash)) {
-                disregardedIterator.remove();
-                removed = true;
-                this.disregardedMessages = tempDisregarded;
-                JOptionPane.showMessageDialog(null, "Message deleted from disregarded messages.",
-                        "Deletion Successful", JOptionPane.INFORMATION_MESSAGE);
+                it.remove();
+                showInfoMessage("Message deleted from disregarded messages.", "Deletion Successful");
                 return true;
             }
         }
 
-        Iterator<MessageData.messageData> storedIterator = tempStored.iterator();
-        while (storedIterator.hasNext()) {
-            MessageData.messageData msg = storedIterator.next();
+        it = storedMessages.iterator();
+        while (it.hasNext()) {
+            MessageData.messageData msg = it.next();
             if (msg.getHash().equalsIgnoreCase(messageHash)) {
-                storedIterator.remove();
-                messageHashes.remove(msg.getHash());
+                it.remove();
                 messageIDs.remove(msg.getId());
-                this.storedMessages = tempStored;
+                messageHashes.remove(msg.getHash());
                 rewriteStoredMessagesJson();
-                removed = true;
-                JOptionPane.showMessageDialog(null, "Message deleted from stored messages.",
-                        "Deletion Successful", JOptionPane.INFORMATION_MESSAGE);
+                showInfoMessage("Message deleted from stored messages.", "Deletion Successful");
                 return true;
             }
         }
 
-        if (!removed) {
-            JOptionPane.showMessageDialog(null, "Message not found.",
-                    "Deletion Failed", JOptionPane.INFORMATION_MESSAGE);
-        }
-        return removed;
+        showInfoMessage("Message not found.", "Deletion Failed");
+        return false;
     }
 
     public void displaySentMessagesReport() {
         if (sentMessages.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "No sent messages to report.",
-                    "Sent Messages Report", JOptionPane.INFORMATION_MESSAGE);
+            showInfoMessage("No sent messages to report.", "Sent Messages Report");
             return;
         }
 
@@ -341,15 +271,55 @@ public class MessageProcessor {
                     .append("----------------------------------\n");
         }
 
-        JTextArea textArea = new JTextArea(sb.toString());
-        textArea.setEditable(false);
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setPreferredSize(new Dimension(500, 400));
-        JOptionPane.showMessageDialog(null, scrollPane,
-                "Sent Messages Report", JOptionPane.INFORMATION_MESSAGE);
+        showScrollableMessage(sb.toString(), "Sent Messages Report", 500, 400);
     }
 
-    // --- Getters for Message Lists ---
+    // ---------- Utilities ----------
+
+    private Optional<MessageData.messageData> findMessageById(String id) {
+        return getAllMessages().stream()
+                .filter(msg -> msg.getId().equals(id))
+                .findFirst();
+    }
+
+    private List<MessageData.messageData> getAllMessages() {
+        List<MessageData.messageData> all = new ArrayList<>();
+        all.addAll(sentMessages);
+        all.addAll(disregardedMessages);
+        all.addAll(storedMessages);
+        return all;
+    }
+
+    private void showInfoMessage(String message, String title) {
+        if (!GraphicsEnvironment.isHeadless()) {
+            JOptionPane.showMessageDialog(null, message, title, JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            System.out.println("[INFO] " + title + ": " + message);
+        }
+    }
+
+    private void showErrorMessage(String message, String title) {
+        if (!GraphicsEnvironment.isHeadless()) {
+            JOptionPane.showMessageDialog(null, message, title, JOptionPane.ERROR_MESSAGE);
+        } else {
+            System.err.println("[ERROR] " + title + ": " + message);
+        }
+    }
+
+    private void showScrollableMessage(String content, String title, int width, int height) {
+        if (!GraphicsEnvironment.isHeadless()) {
+            JTextArea textArea = new JTextArea(content);
+            textArea.setEditable(false);
+            JScrollPane scrollPane = new JScrollPane(textArea);
+            scrollPane.setPreferredSize(new Dimension(width, height));
+            JOptionPane.showMessageDialog(null, scrollPane, title, JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            System.out.println("[INFO - " + title + "]\n" + content);
+        }
+    }
+
+    // ---------- Getters ----------
+
     public List<MessageData.messageData> getSentMessages() {
         return sentMessages;
     }
