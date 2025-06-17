@@ -13,14 +13,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout código
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Configurar Java
+      - name: Set up Java 17
         uses: actions/setup-java@v3
         with:
-          java-version: '17'    # Troque para a sua versão de Java, se for diferente
+          java-version: '17'
           distribution: 'temurin'
+          cache: 'maven'
 
-      - name: Rodar testes Maven
-        run: ./mvnw clean test
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2-
+
+      - name: Build and test with Maven
+        run: mvn -B clean test --file pom.xml
+
+      - name: Archive test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results
+          path: |
+            target/surefire-reports/*
+            target/failsafe-reports/*
+
+      - name: Verify test results
+        run: |
+          if grep -q "<failure" target/surefire-reports/TEST-*.xml; then
+            echo "::error::Some tests failed"
+            exit 1
+          fi
